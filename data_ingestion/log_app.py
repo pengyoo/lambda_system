@@ -1,17 +1,9 @@
-from kafka import KafkaProducer
-import json
 import time
 import random
 import config
 
-def produce_logs(bootstrap_servers, topic):
-    """ Simulate an application that is producing logs constantly """
+def produce_file_logs(filename):
     
-    producer = KafkaProducer(bootstrap_servers=bootstrap_servers,
-                             value_serializer=lambda v: json.dumps(v).encode('utf-8'))
-    
-    # - 1719565562 2024-06-27 R39-M19-N50-C:J29-U93 2024-06-28-09.11.06.367218 R39-M19-N50-C:J29-U93 RAS KERNEL ERROR minor error
-    # - 1719565920 2024-06-27 R94-M33-N29-C:J62-U81 2024-06-27-09.31.31.743136 R94-M33-N29-C:J62-U81 RAS KERNEL INFO network issue
     while True:
         # Generate random
         timestamp = int(time.time())
@@ -23,9 +15,12 @@ def produce_logs(bootstrap_servers, topic):
 
         log_entry = f"- {timestamp} {date} {node} {datetime}.{str(random.randint(100000, 999999))} {node} RAS KERNEL {log_level} {message_content}"
 
-        producer.send(topic, log_entry)
-        time.sleep(1)
+        print(log_entry)
+        with open(filename, 'a') as f:
+            f.write(log_entry + '\n')
+            
+        time.sleep(3)
         # print(log_entry)
 
 if __name__ == "__main__":
-    produce_logs(config.KAFKA_SERVER, config.KAFKA_TOPIC)
+    produce_file_logs("/home/hadoop/logs/app.log")

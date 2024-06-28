@@ -17,23 +17,23 @@ def batch_processing(input_path):
     
     # Perform batch analysis: 1
     result_df = analyze_error_counts(bgl_df, spark)
-    write_batch_to_mongo(result_df, "batch_layer_fatal_error_counts_10_11")
+    write_batch_to_mongo(result_df, "fatal_error_counts_10_11")
     
     # Perform batch analysis: 5
     average_df = analyze_average_resynch_counts(bgl_df, spark)
-    write_batch_to_mongo(average_df, "batch_layer_average_resynch_counts")
+    write_batch_to_mongo(average_df, "average_resynch_counts")
     
     # Perform batch analysis: 9
     top5_dates_df = analyze_top5_dates(bgl_df, spark)
-    write_batch_to_mongo(top5_dates_df, "batch_layer_top5_dates")
+    write_batch_to_mongo(top5_dates_df, "top5_dates")
     
     # Perform batch analysis: 15
     smallest_appbusy_node_df = analyze_smallest_appbusy_node(bgl_df, spark)
-    write_batch_to_mongo(smallest_appbusy_node_df, "batch_layer_smallest_appbusy_node")
+    write_batch_to_mongo(smallest_appbusy_node_df, "smallest_appbusy_node")
     
     # Perform batch analysis: 18
     earliest_fatal_kernel_date_df = analyze_earliest_fatal_kernel_date(bgl_df, spark)
-    write_batch_to_mongo(earliest_fatal_kernel_date_df, "batch_layer_earliest_fatal_kernel_date")
+    write_batch_to_mongo(earliest_fatal_kernel_date_df, "earliest_fatal_kernel_date")
     
     print("#######################  Batch Processing Finished  ######################")
     # Stop Spark Session

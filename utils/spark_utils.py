@@ -79,7 +79,7 @@ def analyze_error_counts(bgl_df, spark):
                 bgl_logs
               WHERE 
                 level = 'FATAL' 
-                AND month(datetime) in (10, 11) 
+                AND month(datetime) in (6, 10, 11) 
                 AND message_content like '%major internal error%'
               """)
     
@@ -101,11 +101,10 @@ def analyze_average_resynch_counts(bgl_df, spark):
     bgl_df.createOrReplaceTempView("bgl_logs")
 
     # Query
-    ## TODO 统计月的数量
     result_df = spark.sql("""
         SELECT 
             month(datetime) AS month,
-            count(*) AS resynch_count
+            count(*) AS average_resynch_count
         FROM 
             bgl_logs
         WHERE 
@@ -160,11 +159,14 @@ def analyze_smallest_appbusy_node(bgl_df, spark):
     # Create temp view
     bgl_df.createOrReplaceTempView("bgl_logs")
     # Query
-    smallest_appbusy_df= spark.sql("""
-                            SELECT 
+    smallest_appbusy_df = spark.sql("""
+                           SELECT 
                                 node, count(*) as app_busy_num
                             FROM
                                 bgl_logs
+                            WHERE 
+                                system_component = 'APP'
+                                AND message_content like '%busy%'
                             GROUP BY
                                 node
                             ORDER BY
