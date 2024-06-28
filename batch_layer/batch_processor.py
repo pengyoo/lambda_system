@@ -1,10 +1,11 @@
 
-from pyspark.sql.functions import col, month, count, window
-from utils.spark_utils import create_spark_session, parse_logs
 import config
+from utils.spark_utils import create_spark_session, parse_logs, analyze_error_counts, analyze_average_seconds, analyze_top5_dates, analyze_smallest_appbusy_node, analyze_earliest_fatal_kernel_date, write_batch_to_mongo
+
 
 def batch_processing(input_path):
     """ Process historical (batch) logs """
+    print("#######################  Batch Processing Started  ######################")
     
     spark = create_spark_session("BGLBatchProcessor")
     
@@ -14,39 +15,29 @@ def batch_processing(input_path):
     # Parse log
     bgl_df = parse_logs(historical_data)
     
-    print("#######################  Batch Processing Started  ######################")
-
-    # Perform batch analysis
-    result_df = analyze_error_counts(bgl_df)
-                
-    # Save results
-    write_to_mongo(result_df)
+    # Perform batch analysis: 1
+    result_df = analyze_error_counts(bgl_df, spark)
+    write_batch_to_mongo(result_df, "batch_layer_fatal_error_counts_10_11")
+    
+    # Perform batch analysis: 5
+    average_df = analyze_average_seconds(bgl_df, spark)
+    write_batch_to_mongo(average_df, "batch_layer_average_seconds")
+    
+    # Perform batch analysis: 9
+    top5_dates_df = analyze_top5_dates(bgl_df, spark)
+    write_batch_to_mongo(top5_dates_df, "batch_layer_top5_dates")
+    
+    # Perform batch analysis: 15
+    smallest_appbusy_node_df = analyze_smallest_appbusy_node(bgl_df, spark)
+    write_batch_to_mongo(smallest_appbusy_node_df, "batch_layer_smallest_appbusy_node")
+    
+    # Perform batch analysis: 18
+    earliest_fatal_kernel_date_df = analyze_earliest_fatal_kernel_date(bgl_df, spark)
+    write_batch_to_mongo(earliest_fatal_kernel_date_df, "batch_layer_earliest_fatal_kernel_date")
     
     print("#######################  Batch Processing Finished  ######################")
-
-
-def analyze_error_counts(bgl_df):
-    filtered_df = bgl_df \
-                .filter(
-                    (col('level') == 'FATAL') &
-                    (month(col('datetime')).isin(10, 11)) &
-                    (col('message_content').contains('major internal error'))
-                )
-    
-    # Aggregate to count the number of such log entries
-    result_df = filtered_df \
-                .groupBy() \
-                .agg(count("*") \
-                .alias("errors_count"))
-    return result_df
-
-def write_to_mongo(result_df):
-    """ Write processing result to mongodb"""
-    result_df.write \
-        .format("mongo") \
-        .mode("overwrite") \
-        .option("uri", config.MONGO_BATCH_URI) \
-        .save()
+    # Stop Spark Session
+    spark.stop()
 
 if __name__ == "__main__":
     batch_processing(config.BATCH_LOG_PATH)

@@ -6,7 +6,8 @@ def speed_layer_processing(df):
     """ Process logs """
     return df \
         .filter((col("level") == "FATAL") & 
-                (month(col("datetime")).isin(6, 10, 11)) & 
+                # (month(col("datetime")).isin(6, 10, 11)) & 
+                (month(col("datetime")).isin(10, 11)) & 
                 (col("message_content").contains("major internal error"))) \
         .groupBy(window(col("datetime"), "1 hour")) \
         .agg(count("*").alias("errors_count"))

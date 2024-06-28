@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import split, col, unix_timestamp, concat_ws, expr, month, to_date, count, window
+from pyspark.sql.functions import split, col, unix_timestamp, concat_ws, expr, month, to_date, count, window, second
 import config
 from pymongo import MongoClient
 import pandas as pd
@@ -12,11 +12,6 @@ def create_spark_session(app_name="BGLLogAnalysis"):
                 "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,"
                 "org.mongodb.spark:mongo-spark-connector_2.12:3.0.1") \
         .getOrCreate()
-
-
-def stop_spark_session(spark):
-    """ Stop Spark Session """
-    spark.stop()
 
 
 def get_kafka_df(spark, kafka_bootstrap_servers, topic):
@@ -60,6 +55,158 @@ def parse_logs(df):
     return bgl_df
 
 
+
+def analyze_error_counts(bgl_df, spark):
+    """ 1. How many fatal log entries in the months of October or November resulted from a ”major internal error”?  """
+    # filtered_df = bgl_df \
+    #             .filter(
+    #                 (col('level') == 'FATAL') &
+    #                 (month(col('datetime')).isin(10, 11)) &
+    #                 (col('message_content').contains('major internal error'))
+    #             )
+    
+    # # Aggregate to count the number of such log entries
+    # result_df = filtered_df \
+    #             .groupBy() \
+    #             .agg(count("*") \
+    #             .alias("errors_count"))
+                
+     # Create temp view
+    bgl_df.createOrReplaceTempView("bgl_logs")
+    
+    # Query
+    result_df = spark.sql("""
+              SELECT 
+                count(*) as errors_count
+              FROM 
+                bgl_logs
+              WHERE 
+                level = 'FATAL' 
+                AND month(datetime) in (10, 11) 
+                AND message_content like '%major internal error%'
+              """)
+    
+    
+    return result_df
+
+
+def analyze_average_seconds(bgl_df, spark):
+    """ 5. For each month, what is the average number of seconds over which ”re-synch state events” occurred?  """
+    # resynch_df = bgl_df.filter(col('message_content').contains('re-synch state'))
+    # result_df = resynch_df \
+    #     .withColumn('seconds', second(col('datetime'))) \
+    #     .withColumn('month', month(col('datetime'))) \
+    #     .groupby('month') \
+    #     .avg('seconds') \
+    #     .withColumnRenamed('avg(seconds)', 'average_seconds')
+    
+    # Create temp view
+    bgl_df.createOrReplaceTempView("bgl_logs")
+
+    # Query
+    result_df = spark.sql("""
+        SELECT 
+            month(datetime) AS month,
+            AVG(second(datetime)) AS average_seconds
+        FROM 
+            bgl_logs
+        WHERE 
+            message_content LIKE '%re-synch state%'
+        GROUP BY 
+            month(datetime)
+    """)
+    return result_df
+
+
+def analyze_top5_dates(bgl_df, spark):
+    
+    """ 9. What are the top 5 most frequently occurring dates in the log?  """
+    # top5_dates = bgl_df \
+    #                 .groupby('date') \
+    #                 .agg(count('*') \
+    #                 .alias('count'))
+    # top5_dates = top5_dates \
+    #                 .orderBy(top5_dates['count'].desc()) \
+    #                 .head(5)
+    # top5_dates_df = spark.createDataFrame(top5_dates)
+    
+    # Create temp view
+    bgl_df.createOrReplaceTempView("bgl_logs")
+    # Query
+    top5_dates_df= spark.sql("""
+                            SELECT 
+                                date, count(*) as count
+                            FROM
+                                bgl_logs
+                            GROUP BY
+                                date
+                            ORDER BY
+                                count desc
+                            LIMIT
+                                5
+                            """)
+    
+    return top5_dates_df
+
+
+def analyze_smallest_appbusy_node(bgl_df, spark):
+    
+    """ 15. Which node generated the smallest number of APPBUSY events?  """
+    # smallest_appbusy_node = bgl_df \
+    #                         .filter((col('system_component') == 'APP') & col('message_content').contains('busy')) \
+    #                         .groupby('node') \
+    #                         .agg(count('*') \
+    #                         .alias('app_busy_num'))
+    # smallest_appbusy_node = smallest_appbusy_node \
+    #                         .orderBy(smallest_appbusy_node['app_busy_num'].asc())
+    # Create temp view
+    bgl_df.createOrReplaceTempView("bgl_logs")
+    # Query
+    smallest_appbusy_df= spark.sql("""
+                            SELECT 
+                                node, count(*) as app_busy_num
+                            FROM
+                                bgl_logs
+                            GROUP BY
+                                node
+                            ORDER BY
+                                app_busy_num asc
+                            LIMIT
+                                1
+                            """)
+    
+    return smallest_appbusy_df
+
+
+def analyze_earliest_fatal_kernel_date(bgl_df, spark):
+    
+    """ 18. On which date and time was the earliest fatal kernel error where the message contains ”Lustre mount FAILED”?  """
+    # result_df =  bgl_df \
+    #     .filter(col('message_content') \
+    #     .contains('Lustre mount FAILED')) \
+    #     .orderBy(bgl_df['datetime'].asc()) \
+    #     .limit(1)
+    
+    # Create temp view
+    bgl_df.createOrReplaceTempView("bgl_logs")
+    # Query
+    result_df = spark.sql("""
+                            SELECT 
+                                datetime
+                            FROM
+                                bgl_logs
+                            WHERE
+                                message_content like '%Lustre mount FAILED%'
+                            ORDER BY
+                                datetime asc
+                            LIMIT
+                                1
+                         """)
+    
+    return result_df
+
+
+## TODO
 def get_batch_results():
     """ Get Batch Processing Result """
     client = MongoClient(config.MONGO_SERVER)
@@ -76,7 +223,17 @@ def get_speed_layer_results():
     client.close()
     return result
 
+## TODO
 def combine_results(batch_df, speed_df): 
     """ Combine Batch and Speed Processing Result """
     total_errors_count = batch_df['errors_count'].sum() + speed_df['errors_count'].sum()
     return total_errors_count
+
+
+def write_batch_to_mongo(result_df, mongo_document):
+    """ Write processing result to mongodb"""
+    result_df.write \
+        .format("mongo") \
+        .mode("overwrite") \
+        .option("uri", config.MONGO_BATCH_BASEURI + mongo_document) \
+        .save()
