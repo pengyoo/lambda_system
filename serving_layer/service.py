@@ -10,7 +10,7 @@ def get_batch_results():
  
     error_counts = list(db.batch_layer_fatal_error_counts_10_11.find({}, {'_id': 0}))[0]['errors_count']
     
-    average_seconds = list(db.batch_layer_average_seconds.find({}, {'_id': 0}))
+    average_resynch_counts = list(db.batch_layer_average_resynch_counts.find({}, {'_id': 0}))
           
     top5_dates = list(db.batch_layer_top5_dates.find({}, {'_id': 0}))
     
@@ -20,7 +20,7 @@ def get_batch_results():
     
     
     return error_counts, \
-           average_seconds, \
+           average_resynch_counts, \
            top5_dates, \
            smallest_appbusy_node, \
            earliest_fatal_kernel_date

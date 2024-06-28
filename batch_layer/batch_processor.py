@@ -1,6 +1,6 @@
 
 import config
-from utils.spark_utils import create_spark_session, parse_logs, analyze_error_counts, analyze_average_seconds, analyze_top5_dates, analyze_smallest_appbusy_node, analyze_earliest_fatal_kernel_date, write_batch_to_mongo
+from utils.spark_utils import create_spark_session, parse_logs, analyze_error_counts, analyze_average_resynch_counts, analyze_top5_dates, analyze_smallest_appbusy_node, analyze_earliest_fatal_kernel_date, write_batch_to_mongo
 
 
 def batch_processing(input_path):
@@ -20,8 +20,8 @@ def batch_processing(input_path):
     write_batch_to_mongo(result_df, "batch_layer_fatal_error_counts_10_11")
     
     # Perform batch analysis: 5
-    average_df = analyze_average_seconds(bgl_df, spark)
-    write_batch_to_mongo(average_df, "batch_layer_average_seconds")
+    average_df = analyze_average_resynch_counts(bgl_df, spark)
+    write_batch_to_mongo(average_df, "batch_layer_average_resynch_counts")
     
     # Perform batch analysis: 9
     top5_dates_df = analyze_top5_dates(bgl_df, spark)

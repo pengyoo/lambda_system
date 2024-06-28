@@ -87,7 +87,7 @@ def analyze_error_counts(bgl_df, spark):
     return result_df
 
 
-def analyze_average_seconds(bgl_df, spark):
+def analyze_average_resynch_counts(bgl_df, spark):
     """ 5. For each month, what is the average number of seconds over which ”re-synch state events” occurred?  """
     # resynch_df = bgl_df.filter(col('message_content').contains('re-synch state'))
     # result_df = resynch_df \
@@ -105,7 +105,7 @@ def analyze_average_seconds(bgl_df, spark):
     result_df = spark.sql("""
         SELECT 
             month(datetime) AS month,
-            AVG(second(datetime)) AS average_seconds,
+            count(*) AS resynch_count
         FROM 
             bgl_logs
         WHERE 
