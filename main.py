@@ -1,16 +1,18 @@
 import multiprocessing
+from batch_layer.batch_processor import batch_processing
 from data_ingestion.kafka_producer import produce_logs
 from speed_layer.stream_processor import process_stream
 from serving_layer.api import app
+import config
 
 def run_batch_processing():
-     batch_processing("hdfs://localhost:54310/bgl/BGL.log", "hdfs://localhost:54310/bgl/batch/results/01")
+    batch_processing(config.BATCH_LOG_PATH, config.MONGO_BATCH_URI)
 
 def run_kafka_producer():
-    produce_logs("localhost:9092", "bgl_logs")
+    produce_logs(config.KAFKA_SERVER, config.KAFKA_TOPIC)
 
 def run_stream_processor():
-    process_stream("localhost:9092", "bgl_logs")
+    process_stream(config.KAFKA_SERVER, config.KAFKA_TOPIC)
 
 def run_api():
     app.run(debug=True)

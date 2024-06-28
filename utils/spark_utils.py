@@ -1,7 +1,11 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import split, col, unix_timestamp, concat_ws, expr, month, to_date, count, window
+import config
+from pymongo import MongoClient
+import pandas as pd
 
 def create_spark_session(app_name="BGLLogAnalysis"):
+    """ Create Spark Session """
     return SparkSession.builder \
         .appName(app_name) \
         .config("spark.jars.packages", 
@@ -11,10 +15,12 @@ def create_spark_session(app_name="BGLLogAnalysis"):
 
 
 def stop_spark_session(spark):
+    """ Stop Spark Session """
     spark.stop()
 
 
 def get_kafka_df(spark, kafka_bootstrap_servers, topic):
+    """ Get Stream DF from Kafka """
     return spark \
         .readStream \
         .format("kafka") \
@@ -24,7 +30,7 @@ def get_kafka_df(spark, kafka_bootstrap_servers, topic):
 
 
 def parse_logs(df):
-        
+    """ Preprocess Logs """    
     # Split the text into columns based on spaces
     bgl_df = df.withColumn('split', split(col('value'), ' '))
 
@@ -52,3 +58,25 @@ def parse_logs(df):
 
 
     return bgl_df
+
+
+def get_batch_results():
+    """ Get Batch Processing Result """
+    client = MongoClient(config.MONGO_SERVER)
+    db = client.bgl_logs
+    result = pd.DataFrame(list(db.batch_layer.find()))
+    client.close()
+    return result
+
+def get_speed_layer_results():
+    """ Get Speed Processing Result """
+    client = MongoClient(config.MONGO_SERVER)
+    db = client.bgl_logs
+    result =  pd.DataFrame(list(db.speed_layer.find().order('window.end', -1).limit(1)))
+    client.close()
+    return result
+
+def combine_results(batch_df, speed_df): 
+    """ Combine Batch and Speed Processing Result """
+    total_errors_count = batch_df['errors_count'].sum() + speed_df['errors_count'].sum()
+    return total_errors_count

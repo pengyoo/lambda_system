@@ -1,8 +1,11 @@
 
 from pyspark.sql.functions import col, month, count, window
 from utils.spark_utils import create_spark_session, parse_logs
+import config
 
-def batch_processing(input_path, output_path):
+def batch_processing(input_path):
+    """ Process historical (batch) logs """
+    
     spark = create_spark_session("BGLBatchProcessor")
     
     # Read historical data
@@ -12,8 +15,17 @@ def batch_processing(input_path, output_path):
     bgl_df = parse_logs(historical_data)
     
     print("#######################  Batch Processing Started  ######################")
-    
+
     # Perform batch analysis
+    result_df = analyze_error_counts(bgl_df)
+                
+    # Save results
+    write_to_mongo(result_df)
+    
+    print("#######################  Batch Processing Finished  ######################")
+
+
+def analyze_error_counts(bgl_df):
     filtered_df = bgl_df \
                 .filter(
                     (col('level') == 'FATAL') &
@@ -26,18 +38,15 @@ def batch_processing(input_path, output_path):
                 .groupBy() \
                 .agg(count("*") \
                 .alias("errors_count"))
-                
-    
-    
-    
-    # Save results
+    return result_df
+
+def write_to_mongo(result_df):
+    """ Write processing result to mongodb"""
     result_df.write \
         .format("mongo") \
         .mode("overwrite") \
-        .option("uri", "mongodb://192.168.86.1:27017/bgl_logs.batch_layer") \
+        .option("uri", config.MONGO_BATCH_URI) \
         .save()
-    
-    print("#######################  Batch Processing Finished  ######################")
 
 if __name__ == "__main__":
-    batch_processing("hdfs://localhost:54310/bgl/BGL.log", "hdfs://localhost:54310/bgl/batch/results/01")
+    batch_processing(config.BATCH_LOG_PATH)
