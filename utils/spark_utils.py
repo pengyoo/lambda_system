@@ -1,8 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import split, col, unix_timestamp, concat_ws, expr, month, to_date, count, window, second
 import config
-from pymongo import MongoClient
-import pandas as pd
 
 def create_spark_session(app_name="BGLLogAnalysis"):
     """ Create Spark Session """
@@ -50,7 +48,6 @@ def parse_logs(df):
 
     # Filter out unnecessary columns
     bgl_df = bgl_df.select('flag', 'timestamp', 'date', 'node', 'datetime',  'message_type', 'system_component', 'level', 'message_content')
-
 
     return bgl_df
 
@@ -104,10 +101,11 @@ def analyze_average_seconds(bgl_df, spark):
     bgl_df.createOrReplaceTempView("bgl_logs")
 
     # Query
+    ## TODO 统计月的数量
     result_df = spark.sql("""
         SELECT 
             month(datetime) AS month,
-            AVG(second(datetime)) AS average_seconds
+            AVG(second(datetime)) AS average_seconds,
         FROM 
             bgl_logs
         WHERE 
@@ -204,30 +202,6 @@ def analyze_earliest_fatal_kernel_date(bgl_df, spark):
                          """)
     
     return result_df
-
-
-## TODO
-def get_batch_results():
-    """ Get Batch Processing Result """
-    client = MongoClient(config.MONGO_SERVER)
-    db = client.bgl_logs
-    result = pd.DataFrame(list(db.batch_layer.find()))
-    client.close()
-    return result
-
-def get_speed_layer_results():
-    """ Get Speed Processing Result """
-    client = MongoClient(config.MONGO_SERVER)
-    db = client.bgl_logs
-    result =  pd.DataFrame(list(db.speed_layer.find().order('window.end', -1).limit(1)))
-    client.close()
-    return result
-
-## TODO
-def combine_results(batch_df, speed_df): 
-    """ Combine Batch and Speed Processing Result """
-    total_errors_count = batch_df['errors_count'].sum() + speed_df['errors_count'].sum()
-    return total_errors_count
 
 
 def write_batch_to_mongo(result_df, mongo_document):
