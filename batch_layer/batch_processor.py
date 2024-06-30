@@ -1,6 +1,6 @@
 
 import config
-from utils.spark_utils import create_spark_session, parse_logs, analyze_error_counts, analyze_total_resynch_counts_by_month, analyze_top5_dates, analyze_smallest_appbusy_node, analyze_earliest_fatal_kernel_date, write_batch_to_mongo
+from utils.spark_utils import *
 
 
 def batch_processing(input_path):
@@ -34,6 +34,18 @@ def batch_processing(input_path):
     # Perform batch analysis: 18
     earliest_fatal_kernel_date_df = analyze_earliest_fatal_kernel_date(bgl_df, spark)
     write_batch_to_mongo(earliest_fatal_kernel_date_df, "earliest_fatal_kernel_date")
+    
+    # Perform level frequency analysis
+    level_frequency = analyze_level(bgl_df, spark)
+    write_batch_to_mongo(level_frequency, "level_frequency")
+    
+    # Perform node fatal analysis
+    fatal_node = analyze_fatal_node(bgl_df, spark)
+    write_batch_to_mongo(fatal_node, "fatal_node_frequency")
+    
+     # Perform message content analysis
+    message_content_reslut = analyze_message_content(bgl_df, spark)
+    write_batch_to_mongo(message_content_reslut, "message_content_frequency")
     
     print("#######################  Batch Processing Finished  ######################")
     # Stop Spark Session

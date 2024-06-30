@@ -213,6 +213,75 @@ def analyze_earliest_fatal_kernel_date(bgl_df, spark):
     return result_df
 
 
+def analyze_level(bgl_df, spark):
+    
+    """ Analyze the frequency of each error level  """
+    
+    # Create temp view
+    bgl_df.createOrReplaceTempView("bgl_logs")
+    # Query
+    result_df = spark.sql("""
+                            SELECT 
+                                level, count(*) as count
+                            FROM
+                                bgl_logs
+                            GROUP BY
+                                level
+                            ORDER BY
+                                count desc
+                         """)
+    
+    return result_df
+
+
+def analyze_fatal_node(bgl_df, spark):
+    
+    """ Analyze how many fatal level errors in each node  """
+    
+    # Create temp view
+    bgl_df.createOrReplaceTempView("bgl_logs")
+    # Query
+    result_df = spark.sql("""
+                            SELECT 
+                                node, count(*) as count
+                            FROM
+                                bgl_logs
+                            WHERE 
+                                level = 'FATAL'
+                            GROUP BY
+                                node
+                            ORDER BY
+                                count desc
+                            LIMIT
+                                20
+                         """)
+    
+    return result_df
+
+
+def analyze_message_content(bgl_df, spark):
+    
+    """ Analyze how many fatal level errors in each node  """
+    
+    # Create temp view
+    bgl_df.createOrReplaceTempView("bgl_logs")
+    # Query
+    result_df = spark.sql("""
+                            SELECT 
+                                message_content, count(*) as count
+                            FROM
+                                bgl_logs
+                            GROUP BY
+                                message_content
+                            ORDER BY
+                                count desc
+                            LIMIT
+                                20
+                         """)
+    
+    return result_df
+
+
 def write_batch_to_mongo(result_df, mongo_document):
     """ Write processing result to mongodb"""
     result_df.write \

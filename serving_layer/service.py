@@ -18,12 +18,17 @@ def get_batch_results():
     
     earliest_fatal_kernel_date = list(db.earliest_fatal_kernel_date.find({}, {'_id': 0}))[0]['datetime']
     
+    fatal_node_frequency = list(db.fatal_node_frequency.find({}, {'_id': 0}).limit(5))
     
+    message_frequency = list(db.message_content_frequency.find({}, {'_id': 0}).limit(5))
+ 
     return errors_count, \
            total_resynch_counts, \
            top5_dates, \
            smallest_appbusy_node, \
-           earliest_fatal_kernel_date
+           earliest_fatal_kernel_date, \
+           fatal_node_frequency, \
+           message_frequency
 
 ## TODO
 def get_speed_layer_results():
@@ -91,7 +96,7 @@ def get_speed_layer_results():
 
 def combine_results(batch_results, speed_results):
     # unpack data
-    batch_errors_count, batch_total_resynch_counts, batch_top5_dates, batch_smallest_appbusy_node, batch_earliest_fatal_kernel_date = batch_results
+    batch_errors_count, batch_total_resynch_counts, batch_top5_dates, batch_smallest_appbusy_node, batch_earliest_fatal_kernel_date, batch_fatal_node_frequency, batch_message_frequency = batch_results
     speed_errors_count, speed_total_resynch_counts, speed_top5_dates, speed_smallest_appbusy_node = speed_results
 
     # merge total_resynch_counts
@@ -112,6 +117,8 @@ def combine_results(batch_results, speed_results):
 
     # merge earliest_fatal_kernel_date
     earliest_fatal_kernel_date = batch_earliest_fatal_kernel_date
+    fatal_node_frequency = batch_fatal_node_frequency
+    message_frequency = batch_message_frequency
 
-    return errors_count, total_resynch_counts, top5_dates, smallest_appbusy_node, earliest_fatal_kernel_date
+    return errors_count, total_resynch_counts, top5_dates, smallest_appbusy_node, earliest_fatal_kernel_date, fatal_node_frequency, message_frequency
 
