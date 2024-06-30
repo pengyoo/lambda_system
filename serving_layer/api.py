@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-
+from flask_cors import CORS
 import pandas as pd
 
 from .service import get_batch_results
@@ -8,6 +8,7 @@ from .service import combine_results
 import config
 
 app = Flask(__name__)
+CORS(app)
 
 @app.route('/batch_results')
 def get_batch_result():
@@ -32,10 +33,10 @@ def get_realtime_result():
     batch_results = get_batch_results()
     
     combined_results = combine_results(batch_results, speed_results)
-    errors_count, average_resynch_counts, top5_dates, smallest_appbusy_node, earliest_fatal_kernel_date = combined_results
+    errors_count, total_resynch_counts, top5_dates, smallest_appbusy_node, earliest_fatal_kernel_date = combined_results
     
     return jsonify({'errors_count': int(errors_count), 
-                    'average_resynch_counts': average_resynch_counts, 
+                    'total_resynch_counts': total_resynch_counts, 
                     'top5_dates': top5_dates,
                     'smallest_appbusy_node': smallest_appbusy_node,
                     'earliest_fatal_kernel_date': earliest_fatal_kernel_date})

@@ -38,10 +38,10 @@ def process_stream(kafka_bootstrap_servers, kafka_topic):
 
     
     # Perform batch analysis: 5,
-    average_resynch_df = analyze_average_resynch_counts(parsed_df, spark)
+    average_resynch_df = analyze_total_resynch_counts_by_month(parsed_df, spark)
     average_resynch_query = average_resynch_df \
         .writeStream \
-        .foreachBatch(lambda df, epoch_id : append_to_mongo(df, epoch_id, config.MONGO_SPEED_BASEURI+"average_resynch_counts")) \
+        .foreachBatch(lambda df, epoch_id : append_to_mongo(df, epoch_id, config.MONGO_SPEED_BASEURI+"total_resynch_counts")) \
         .outputMode("complete") \
         .trigger(processingTime="1 minute") \
         .start()

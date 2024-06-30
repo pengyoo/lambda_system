@@ -10,7 +10,7 @@ def get_batch_results():
  
     errors_count = list(db.fatal_error_counts_10_11.find({}, {'_id': 0}))[0]['errors_count']
     
-    average_resynch_counts = list(db.average_resynch_counts.find({}, {'_id': 0}))
+    total_resynch_counts = list(db.total_resynch_counts.find({}, {'_id': 0}))
           
     top5_dates = list(db.top5_dates.find({}, {'_id': 0}))
     
@@ -20,7 +20,7 @@ def get_batch_results():
     
     
     return errors_count, \
-           average_resynch_counts, \
+           total_resynch_counts, \
            top5_dates, \
            smallest_appbusy_node, \
            earliest_fatal_kernel_date
@@ -44,7 +44,7 @@ def get_speed_layer_results():
                         {'errors_count': 0})['errors_count']
     
     
-    average_resynch_pipeline = [
+    total_resynch_pipeline = [
         {
             '$group': {
                 '_id': '$month',
@@ -52,7 +52,7 @@ def get_speed_layer_results():
             }
         }
     ]
-    average_resynch_result = list(db.average_resynch_counts.aggregate(average_resynch_pipeline))
+    total_resynch_result = list(db.total_resynch_counts.aggregate(total_resynch_pipeline))
     
     top5_dates_pipeline = [
         {
@@ -86,25 +86,25 @@ def get_speed_layer_results():
         }
     ]
     smallest_appbusy_note_result = list(db.smallest_appbusy_node.aggregate(smallest_appbusy_note_pipeline))
-    return errors_count, average_resynch_result, top5_dates_result, smallest_appbusy_note_result
+    return errors_count, total_resynch_result, top5_dates_result, smallest_appbusy_note_result
 
 
 def combine_results(batch_results, speed_results):
-    # 解包数据
-    batch_errors_count, batch_average_resynch_counts, batch_top5_dates, batch_smallest_appbusy_node, batch_earliest_fatal_kernel_date = batch_results
-    speed_errors_count, speed_average_resynch_counts, speed_top5_dates, speed_smallest_appbusy_node = speed_results
+    # unpack data
+    batch_errors_count, batch_total_resynch_counts, batch_top5_dates, batch_smallest_appbusy_node, batch_earliest_fatal_kernel_date = batch_results
+    speed_errors_count, speed_total_resynch_counts, speed_top5_dates, speed_smallest_appbusy_node = speed_results
 
-    # merge average_resynch_counts
-    average_resynch_counts = batch_average_resynch_counts
+    # merge total_resynch_counts
+    total_resynch_counts = batch_total_resynch_counts
 
     # merge errors_count
     errors_count = batch_errors_count + speed_errors_count
 
     # merge smallest_appbusy_node
     if speed_smallest_appbusy_node and (speed_smallest_appbusy_node[0]['app_busy_num'] < batch_smallest_appbusy_node[0]['app_busy_num']):
-        smallest_appbusy_node = speed_smallest_appbusy_node[0]
+        smallest_appbusy_node = speed_smallest_appbusy_node
     else:
-        smallest_appbusy_node = batch_smallest_appbusy_node[0]
+        smallest_appbusy_node = batch_smallest_appbusy_node
 
     # merge top5_dates and sort them
     top5_dates = speed_top5_dates + batch_top5_dates
@@ -113,5 +113,5 @@ def combine_results(batch_results, speed_results):
     # merge earliest_fatal_kernel_date
     earliest_fatal_kernel_date = batch_earliest_fatal_kernel_date
 
-    return errors_count, average_resynch_counts, top5_dates, smallest_appbusy_node, earliest_fatal_kernel_date
+    return errors_count, total_resynch_counts, top5_dates, smallest_appbusy_node, earliest_fatal_kernel_date
 

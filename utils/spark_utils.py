@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import split, col, unix_timestamp, concat_ws, expr, month, to_date, count, window, second
+from pyspark.sql.functions import split, col, unix_timestamp, concat_ws, expr, year, month, to_date, count, window, second, slice
 import config
 
 def create_spark_session(app_name="BGLLogAnalysis"):
@@ -79,7 +79,7 @@ def analyze_error_counts(bgl_df, spark):
                 bgl_logs
               WHERE 
                 level = 'FATAL' 
-                AND month(datetime) in (6, 10, 11) 
+                AND month(datetime) in (10, 11) 
                 AND message_content like '%major internal error%'
               """)
     
@@ -87,31 +87,38 @@ def analyze_error_counts(bgl_df, spark):
     return result_df
 
 
-def analyze_average_resynch_counts(bgl_df, spark):
-    """ 5. For each month, what is the average number of seconds over which ”re-synch state events” occurred?  """
-    # resynch_df = bgl_df.filter(col('message_content').contains('re-synch state'))
-    # result_df = resynch_df \
-    #     .withColumn('seconds', second(col('datetime'))) \
-    #     .withColumn('month', month(col('datetime'))) \
-    #     .groupby('month') \
-    #     .avg('seconds') \
-    #     .withColumnRenamed('avg(seconds)', 'average_seconds')
+def analyze_total_resynch_counts_by_month(bgl_df, spark):
+    """ 5. For each month, what is the total number of ”re-synch state events” that occurred?  """
+    
+    resynch_df = bgl_df.withColumn('year_month', concat_ws("-", year("datetime"), month("datetime")))
     
     # Create temp view
-    bgl_df.createOrReplaceTempView("bgl_logs")
+    resynch_df.createOrReplaceTempView("bgl_logs")
 
     # Query
+    # result_df = spark.sql("""
+    #     SELECT 
+    #         year_month,
+    #         count(*) AS total_resynch_counts
+    #     FROM 
+    #         bgl_logs
+    #     WHERE 
+    #         message_content LIKE '%re-synch state%'
+    #     GROUP BY 
+    #         year_month
+    # """)
+    
     result_df = spark.sql("""
         SELECT 
-            month(datetime) AS month,
-            count(*) AS average_resynch_count
+            year_month,
+            SUM(CASE WHEN message_content LIKE '%re-synch state%' THEN 1 ELSE 0 END) AS total_resynch_counts
         FROM 
             bgl_logs
-        WHERE 
-            message_content LIKE '%re-synch state%'
         GROUP BY 
-            month(datetime)
-    """)
+            year_month
+        ORDER BY 
+            year_month
+                          """)
     return result_df
 
 
